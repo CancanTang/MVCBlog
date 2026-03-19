@@ -16,6 +16,7 @@ using MVCBlog.Data;
 using MVCBlog.Web.Infrastructure;
 using MVCBlog.Web.Infrastructure.Mvc;
 using MVCBlog.Web.Infrastructure.Mvc.Health;
+using MVCBlog.Web.Infrastructure.Mvc.SecurityHeaders;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -114,28 +115,34 @@ app.UseStaticFiles(new StaticFileOptions
 });
 app.UseCookiePolicy();
 
-var policies = new HeaderPolicyCollection()
-    .AddDefaultSecurityHeaders().
-    AddContentSecurityPolicy(builder =>
-    {
-        builder.AddDefaultSrc().None();
-        builder.AddFrameSrc().From(["https://www.youtube-nocookie.com"]);
-        builder.AddBaseUri().None();
-        builder.AddManifestSrc().Self();
-        builder.AddConnectSrc().Self();
-        builder.AddFontSrc().Self();
-        builder.AddObjectSrc().None();
-        builder.AddFormAction().Self();
-        builder.AddImgSrc().Self().From(["https://i2.wp.com", "https://www.gravatar.com"]);
-        builder.AddScriptSrc().Self();
-        builder.AddStyleSrc().Self().UnsafeInline();
-        builder.AddMediaSrc().Self();
-        builder.AddFrameAncestors().None();
-    })
-    .AddPermissionsPolicy(builder => builder.AddCamera().None())
-    .AddReferrerPolicySameOrigin();
+app.UseSecurityHeaders(builder =>
+{
+    builder.PermissionsPolicySettings.Camera.AllowNone();
 
-app.UseSecurityHeaders(policies);
+    builder.CspSettings.Defaults.AllowNone();
+    builder.CspSettings.Connect.AllowSelf();
+    builder.CspSettings.Manifest.AllowSelf();
+    builder.CspSettings.Objects.AllowNone();
+    builder.CspSettings.Frame.AllowNone();
+    builder.CspSettings.Scripts.AllowSelf();
+
+    builder.CspSettings.Styles
+        .AllowSelf()
+        .AllowUnsafeInline();
+
+    builder.CspSettings.Fonts.AllowSelf();
+
+    builder.CspSettings.Images
+        .AllowSelf()
+        .Allow("https://i2.wp.com")
+        .Allow("https://www.gravatar.com");
+
+    builder.CspSettings.BaseUri.AllowNone();
+    builder.CspSettings.FormAction.AllowSelf();
+    builder.CspSettings.FrameAncestors.AllowNone();
+
+    builder.ReferrerPolicy = ReferrerPolicies.NoReferrerWhenDowngrade;
+});
 
 var supportedCultures = new[]
 {
